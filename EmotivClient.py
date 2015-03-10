@@ -129,10 +129,13 @@ def save_packets_to_sqldb(packets):
     for packet in packets:
         save_packet_to_sqldb(packet)
 
-try:
+        
+def read_packets_from_emotiv(nr_of_seconds_to_record):
     #headset = emotiv.Emotiv()
     #gevent.spawn(headset.setup)
     #gevent.sleep(1.5)
+
+    packets = []
 
     try:
         nr_seconds_to_record = 1
@@ -142,7 +145,6 @@ try:
         recording = nmpy.zeros((samples, epoc_channels))
         nr_packets_read = 0
         while nr_seconds_left_to_record > 0:
-            packets = []
             for sample in range(SAMPLING_RATE):
                 #packet = headset.dequeue()
                 packet = create_randomized_packet()
@@ -156,8 +158,42 @@ try:
                 print "date " + str(datetime.datetime.now().isoformat())
                 print "packet counter " + str(packet.counter)
                 print "packet battery " + str(packet.battery)
-                print "gyro x" + str(packet.gyro_x)
-                print "gyro y" + str(packet.gyro_y)
+                print "sensors" + str(packet.sensors)
+                gevent.sleep(0)
+            nr_seconds_left_to_record = nr_seconds_left_to_record - 1
+    finally:
+        #headset.close()
+        pass
+    return packets
+
+
+try:
+    #headset = emotiv.Emotiv()
+    #gevent.spawn(headset.setup)
+    #gevent.sleep(1.5)
+
+    try:
+        nr_seconds_to_record = 1
+        nr_seconds_left_to_record = nr_seconds_to_record
+        samples = nr_seconds_left_to_record * SAMPLING_RATE
+
+        recording = nmpy.zeros((samples, epoc_channels))
+        nr_packets_read = 0
+        packets = []
+        while nr_seconds_left_to_record > 0:
+            for sample in range(SAMPLING_RATE):
+                #packet = headset.dequeue()
+                packet = create_randomized_packet()
+                packets.append(packet)
+                nr_packets_read = nr_packets_read + 1
+                print "packets read " + str(nr_packets_read)
+                print "sample " + str(sample) + " " + " seconds left " + \
+                      str(nr_seconds_left_to_record) + \
+                      " " + str((nr_seconds_to_record - nr_seconds_left_to_record) * SAMPLING_RATE
+                                + sample)
+                print "date " + str(datetime.datetime.now().isoformat())
+                print "packet counter " + str(packet.counter)
+                print "packet battery " + str(packet.battery)
                 print "sensors" + str(packet.sensors)
 
                 datum = {
@@ -176,10 +212,15 @@ try:
         #write_recording_to_csv(recording)
         #print "It took " + str(time.time() - start_writing) + " seconds to save the file"
 
-        EegData.createTable(ifNotExists=True)
-        start_writing_to_sqldb = time.time()
-        save_packets_to_sqldb(packets)
-        print "It took " + str(time.time() - start_writing_to_sqldb) + " seconds to save to the database"
+        #EegData.createTable(ifNotExists=True)
+        #start_writing_to_sqldb = time.time()
+        #save_packets_to_sqldb(packets)
+        #print "It took " + str(time.time() - start_writing_to_sqldb) + " seconds to save to the database"
+
+        setup_statement = "EegData.createTable(ifNotExists=True)"
+        primary_statement = "save_packets_to_sqldb(packets)"
+        print timeit.Timer(setup_statement, primary_statement).repeat(10, 1)
+        
     finally:
         #headset.close()
         pass
