@@ -1,4 +1,6 @@
-#from __builtin__ import str
+"""
+Simple client for Emotiv devices
+"""
 from emokit import emotiv
 import datetime
 import gevent
@@ -12,7 +14,9 @@ from os import urandom
 import random
 from sqlobject import *
 from sqlobject.sqlite import builder
+from pymongo import MongoClient
 
+client = MongoClient('mongodb://localhost:27017/')
 
 conn = builder()('emotivrecordings-random.db', debug=False)
 
@@ -125,9 +129,28 @@ def save_packet_to_sqldb(packet):
             sensorAF3 = str(packet.sensors['AF3']['value']))
 
 
+def save_packet_to_mongodb(packet):
+    jsonpacket = {
+                'datetime': str(datetime.datetime.now().isoformat()),
+                'emotivpacket': {
+                        'counter': packet.counter,
+                        'battery': packet.battery,
+                        'gyroX': packet.gyro_x,
+                        'gyroY': packet.gyro_y,
+                        'sensors': packet.sensors}}
+    db = client.emotiv_recordings
+    db.emotiv_packets.insert(jsonpacket)
+
+
 def save_packets_to_sqldb(packets):
     for packet in packets:
         save_packet_to_sqldb(packet)
+
+
+def save_packets_to_mongodb(packets):
+    #TODO bulk save
+    for packet in packets:
+        save_packet_to_mongodb(packet)
 
         
 def read_packets_from_emotiv(nr_of_seconds_to_record):
@@ -166,63 +189,57 @@ def read_packets_from_emotiv(nr_of_seconds_to_record):
         pass
     return packets
 
-
-try:
-    #headset = emotiv.Emotiv()
-    #gevent.spawn(headset.setup)
-    #gevent.sleep(1.5)
-
+if __name__ == "__main__":
     try:
-        nr_seconds_to_record = 1
-        nr_seconds_left_to_record = nr_seconds_to_record
-        samples = nr_seconds_left_to_record * SAMPLING_RATE
+        #headset = emotiv.Emotiv()
+        #gevent.spawn(headset.setup)
+        #gevent.sleep(1.5)
 
-        recording = nmpy.zeros((samples, epoc_channels))
-        nr_packets_read = 0
-        packets = []
-        while nr_seconds_left_to_record > 0:
-            for sample in range(SAMPLING_RATE):
-                #packet = headset.dequeue()
-                packet = create_randomized_packet()
-                packets.append(packet)
-                nr_packets_read = nr_packets_read + 1
-                print "packets read " + str(nr_packets_read)
-                print "sample " + str(sample) + " " + " seconds left " + \
-                      str(nr_seconds_left_to_record) + \
-                      " " + str((nr_seconds_to_record - nr_seconds_left_to_record) * SAMPLING_RATE
-                                + sample)
-                print "date " + str(datetime.datetime.now().isoformat())
-                print "packet counter " + str(packet.counter)
-                print "packet battery " + str(packet.battery)
-                print "sensors" + str(packet.sensors)
+        try:
+            nr_seconds_to_record = 1
+            nr_seconds_left_to_record = nr_seconds_to_record
+            samples = nr_seconds_left_to_record * SAMPLING_RATE
 
-                datum = {
-                    'datetime': str(datetime.datetime.now().isoformat()),
-                    'emotivpacket': {
-                        'counter': packet.counter,
-                        'battery': packet.battery,
-                        'gyroX': packet.gyro_x,
-                        'gyroY': packet.gyro_y,
-                        'sensors': packet.sensors}}
-                gevent.sleep(0)
-            nr_seconds_left_to_record = nr_seconds_left_to_record - 1
+            recording = nmpy.zeros((samples, epoc_channels))
+            nr_packets_read = 0
+            packets = []
+            while nr_seconds_left_to_record > 0:
+                for sample in range(SAMPLING_RATE):
+                    #packet = headset.dequeue()
+                    packet = create_randomized_packet()
+                    packets.append(packet)
+                    nr_packets_read = nr_packets_read + 1
+                    print "packets read " + str(nr_packets_read)
+                    print "sample " + str(sample) + " " + " seconds left " + \
+                          str(nr_seconds_left_to_record) + \
+                          " " + str((nr_seconds_to_record - nr_seconds_left_to_record) * SAMPLING_RATE
+                                    + sample)
+                    print "date " + str(datetime.datetime.now().isoformat())
+                    print "packet counter " + str(packet.counter)
+                    print "packet battery " + str(packet.battery)
+                    print "sensors" + str(packet.sensors)
 
-        #recording = prepare_recording_for_csv(packets)
-        #start_writing = time.time()
-        #write_recording_to_csv(recording)
-        #print "It took " + str(time.time() - start_writing) + " seconds to save the file"
+                    gevent.sleep(0)
+                nr_seconds_left_to_record = nr_seconds_left_to_record - 1
 
-        #EegData.createTable(ifNotExists=True)
-        #start_writing_to_sqldb = time.time()
-        #save_packets_to_sqldb(packets)
-        #print "It took " + str(time.time() - start_writing_to_sqldb) + " seconds to save to the database"
+            #recording = prepare_recording_for_csv(packets)
+            #start_writing = time.time()
+            #write_recording_to_csv(recording)
+            #print "It took " + str(time.time() - start_writing) + " seconds to save the file"
 
-        setup_statement = "EegData.createTable(ifNotExists=True)"
-        primary_statement = "save_packets_to_sqldb(packets)"
-        print timeit.Timer(setup_statement, primary_statement).repeat(10, 1)
-        
-    finally:
-        #headset.close()
+            #EegData.createTable(ifNotExists=True)
+            #start_writing_to_sqldb = time.time()
+            #save_packets_to_sqldb(packets)
+            #print "It took " + str(time.time() - start_writing_to_sqldb) + " seconds to save to the SQL database"
+
+            start_writing_to_mongodb = time.time()
+            save_packets_to_mongodb(packets)
+            print "It took " + str(time.time() - start_writing_to_mongodb) + " seconds to save to MongoDB"
+
+        finally:
+            #headset.close()
+            pass
+    except KeyboardInterrupt:
         pass
-except KeyboardInterrupt:
-    pass
+else:
+    print "Not run as main"
