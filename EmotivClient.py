@@ -2,26 +2,72 @@
 Simple client for Emotiv devices
 """
 from emokit import emotiv
-import datetime
-import gevent
-import json
-import pprint
 import pandas as pd
 import numpy as nmpy
-import time
-import timeit
-from os import urandom
 import random
 from sqlobject import *
 from sqlobject.sqlite import builder
-from pymongo import MongoClient
-
-client = MongoClient('mongodb://localhost:27017/')
-
-conn = builder()('emotivrecordings-random.db', debug=False)
+from subprocess import check_call
+import gzip
+import pylzma
+import bz2
+import gevent
+import datetime
+import time
+import json
+import pprint
 
 SAMPLING_RATE = 128 # Emotiv's sampling rate
 epoc_channels = 17
+
+conn = builder()('emotivrecordings.db', debug=False)
+
+
+def sevenZipFile(source_file, compressed_file):
+    # Source: http://www.linuxplanet.org/blogs/?cat=3845
+    f_in = open(source_file, 'rb')
+    f_out = open(compressed_file, 'wb')
+    f_in.seek(0)
+    s = pylzma.compressfile(f_in)
+    while True:
+        tmp = s.read(1)
+        if not tmp: break
+        f_out.write(tmp)
+    f_out.close()
+    f_in.close()
+
+
+def gZipFile(source_file, compressed_file):
+    f_in = open(source_file, 'rb')
+    f_out = gzip.open(compressed_file, 'wb')
+    f_out.writelines(f_in)
+    f_out.close()
+    f_in.close()
+
+
+def gZipFile2(source_file):
+    '''
+    :param source_file: full path to the file to be compressed
+    :returns: 0 if all is OK, otherwise error
+    '''
+    check_call(['gzip', '-k', source_file])
+
+
+def bZipFile(source_file, compressed_file):
+    f_in = open(source_file, 'rb')
+    f_out = bz2.BZ2File(compressed_file, 'wb')
+    f_out.writelines(f_in)
+    f_out.close()
+    f_in.close()
+
+
+def bZipFile2(source_file):
+    '''
+    :param source_file: full path to the file to be compressed
+    :returns 0 if all is OK, otherwise error
+    '''
+    check_call(['bzip2', '-k', source_file])
+
 
 def write_recording_to_csv(recording, filename="recording" + str(datetime.datetime.now().isoformat()) + ".csv",
                            electrodes=None):
@@ -42,7 +88,7 @@ def prepare_recording_for_csv(packets_list):
     return recording
 
 
-class EmotivPacketMock(object):
+class EmotivPacketMock(emotiv.EmotivPacket):
     def __init__(self):
         self.counter = random.randint(0, 100)
         self.battery = random.randint(0, 100)
@@ -69,18 +115,6 @@ class EmotivPacketMock(object):
         }
 
 
-"""
-def create_randomized_packet():
-    headset = emotiv.Emotiv()
-    randombytes = bytearray()
-    randombytes.extend(chr(48))
-    randombytes.extend(urandom(33))
-    randombytes[29] = chr(48)
-    randombytes[30] = chr(48)
-    print " " + str(randombytes[0])
-    return emotiv.EmotivPacket(randombytes, headset.sensors, headset.old_model)
-"""
-
 def create_randomized_packet():
     return EmotivPacketMock()
 
@@ -89,7 +123,6 @@ class EegData(SQLObject):
     _connection = conn
     gyroX = StringCol(length=5)
     gyroY = StringCol(length=5)
-    """Another option is to have a Sensors table (FK, SensorName, Value, Quality)"""
     sensorY = StringCol()
     sensorF3 = StringCol()
     sensorF4 = StringCol()
@@ -110,7 +143,8 @@ class EegData(SQLObject):
 
 
 def save_packet_to_sqldb(packet):
-    EegData(gyroX = str(packet.gyro_x), gyroY = str(packet.gyro_y), sensorY = str(packet.sensors['Y']['value']),
+    EegData(gyroX = str(packet.gyro_x), gyroY = str(packet.gyro_y),
+            sensorY = str(packet.sensors['Y']['value']),
             sensorF3 = str(packet.sensors['F3']['value']),
             sensorF4 = str(packet.sensors['F4']['value']),
             sensorP7 = str(packet.sensors['P7']['value']),
@@ -121,25 +155,12 @@ def save_packet_to_sqldb(packet):
             sensorP8 = str(packet.sensors['P8']['value']),
             sensorFC5 = str(packet.sensors['FC5']['value']),
             sensorAF4 = str(packet.sensors['AF4']['value']),
-            sensorUnknown = str(packet.sensors['Unknown']['value']),
             sensorT8 = str(packet.sensors['T8']['value']),
             sensorX = str(packet.sensors['X']['value']),
             sensorO2 = str(packet.sensors['O2']['value']),
             sensorO1 = str(packet.sensors['O1']['value']),
-            sensorAF3 = str(packet.sensors['AF3']['value']))
-
-
-def save_packet_to_mongodb(packet):
-    jsonpacket = {
-                'datetime': str(datetime.datetime.now().isoformat()),
-                'emotivpacket': {
-                        'counter': packet.counter,
-                        'battery': packet.battery,
-                        'gyroX': packet.gyro_x,
-                        'gyroY': packet.gyro_y,
-                        'sensors': packet.sensors}}
-    db = client.emotiv_recordings
-    db.emotiv_packets.insert(jsonpacket)
+            sensorAF3 = str(packet.sensors['AF3']['value']),
+            sensorUnknown = str(packet.sensors['Unknown']['value']))
 
 
 def save_packets_to_sqldb(packets):
@@ -147,29 +168,20 @@ def save_packets_to_sqldb(packets):
         save_packet_to_sqldb(packet)
 
 
-def save_packets_to_mongodb(packets):
-    #TODO bulk save
-    for packet in packets:
-        save_packet_to_mongodb(packet)
-
-        
-def read_packets_from_emotiv(nr_of_seconds_to_record):
-    #headset = emotiv.Emotiv()
-    #gevent.spawn(headset.setup)
-    #gevent.sleep(1.5)
+def read_packets_from_emotiv(nr_seconds_to_record):
+    headset = emotiv.Emotiv()
+    gevent.spawn(headset.setup)
+    gevent.sleep(1.5)
 
     packets = []
 
     try:
-        nr_seconds_to_record = 1
         nr_seconds_left_to_record = nr_seconds_to_record
-        samples = nr_seconds_left_to_record * SAMPLING_RATE
 
-        recording = nmpy.zeros((samples, epoc_channels))
         nr_packets_read = 0
         while nr_seconds_left_to_record > 0:
             for sample in range(SAMPLING_RATE):
-                #packet = headset.dequeue()
+                # packet = headset.dequeue()
                 packet = create_randomized_packet()
                 packets.append(packet)
                 nr_packets_read = nr_packets_read + 1
@@ -185,8 +197,7 @@ def read_packets_from_emotiv(nr_of_seconds_to_record):
                 gevent.sleep(0)
             nr_seconds_left_to_record = nr_seconds_left_to_record - 1
     finally:
-        #headset.close()
-        pass
+        headset.close()
     return packets
 
 if __name__ == "__main__":
@@ -199,10 +210,9 @@ if __name__ == "__main__":
             nr_seconds_to_record = 1
             nr_seconds_left_to_record = nr_seconds_to_record
             samples = nr_seconds_left_to_record * SAMPLING_RATE
-
-            recording = nmpy.zeros((samples, epoc_channels))
             nr_packets_read = 0
             packets = []
+
             while nr_seconds_left_to_record > 0:
                 for sample in range(SAMPLING_RATE):
                     #packet = headset.dequeue()
@@ -220,21 +230,25 @@ if __name__ == "__main__":
                     print "sensors" + str(packet.sensors)
 
                     gevent.sleep(0)
+
                 nr_seconds_left_to_record = nr_seconds_left_to_record - 1
 
-            #recording = prepare_recording_for_csv(packets)
-            #start_writing = time.time()
-            #write_recording_to_csv(recording)
-            #print "It took " + str(time.time() - start_writing) + " seconds to save the file"
+            recording = prepare_recording_for_csv(packets)
+            start_writing = time.time()
+            csvfile = "emotivrecordings.csv"
+            write_recording_to_csv(recording, csvfile)
+            print "It took " + str(time.time() - start_writing) + " seconds to save the file"
+            gZipFile(csvfile, 'emotivrecordings.csv.gz')
+            sevenZipFile(csvfile, 'emotivrecordings.csv.7z')
+            bZipFile(csvfile, 'emotivrecordings.csv.bz2')
 
-            #EegData.createTable(ifNotExists=True)
-            #start_writing_to_sqldb = time.time()
-            #save_packets_to_sqldb(packets)
-            #print "It took " + str(time.time() - start_writing_to_sqldb) + " seconds to save to the SQL database"
-
-            start_writing_to_mongodb = time.time()
-            save_packets_to_mongodb(packets)
-            print "It took " + str(time.time() - start_writing_to_mongodb) + " seconds to save to MongoDB"
+            EegData.createTable(ifNotExists=True)
+            start_writing_to_sqldb = time.time()
+            save_packets_to_sqldb(packets)
+            print "It took " + str(time.time() - start_writing_to_sqldb) + " seconds to save to the sqlite database"
+            gZipFile('emotivrecordings.db', 'emotivrecordings.db.gz')
+            sevenZipFile('emotivrecordings.db', 'emotivrecordings.db.7z')
+            bZipFile('emotivrecordings.db', 'emotivrecordings.db.bz2')
 
         finally:
             #headset.close()
