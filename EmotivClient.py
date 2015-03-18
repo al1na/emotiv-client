@@ -82,9 +82,10 @@ def write_recording_to_csv(recording, filename="recording" + str(datetime.dateti
 
 def prepare_recording_for_csv(packets_list):
     recording = nmpy.zeros((len(packets_list), epoc_channels))
-    for packet in packets:
+    for packet in packets_list:
         values = map(lambda d: d['value'], packet.sensors.values())
-        recording[packets.index(packet), :] = values
+        recording[packets_list.index(packet), :] = values
+        recording[packets_list.index(packet), :] = values
     return recording
 
 
@@ -168,10 +169,29 @@ def save_packets_to_sqldb(packets):
         save_packet_to_sqldb(packet)
 
 
+def convert_emotiv_packets_to_json(packets):
+    jsonpackets = []
+    for packet in packets:
+        jsonpack = {
+                    #'counter': packet.counter,
+                    #'battery': packet.battery,
+                    #'gyroX': packet.gyro_x,
+                    #'gyroY': packet.gyro_y,
+                    'sensors': packet.sensors}
+        jsonpackets.append(jsonpack)
+    return jsonpackets
+
+
+def save_packets_to_jsonfile(packets):
+    jsonpackets = convert_emotiv_packets_to_json(packets)
+    with open('jsonfile.txt', 'w') as file_out:
+        json.dump(jsonpackets, file_out)
+
+
 def read_packets_from_emotiv(nr_seconds_to_record):
-    headset = emotiv.Emotiv()
-    gevent.spawn(headset.setup)
-    gevent.sleep(1.5)
+    #headset = emotiv.Emotiv()
+    #gevent.spawn(headset.setup)
+    #gevent.sleep(1.5)
 
     packets = []
 
@@ -197,7 +217,8 @@ def read_packets_from_emotiv(nr_seconds_to_record):
                 gevent.sleep(0)
             nr_seconds_left_to_record = nr_seconds_left_to_record - 1
     finally:
-        headset.close()
+        #headset.close()
+        pass
     return packets
 
 if __name__ == "__main__":
@@ -249,6 +270,13 @@ if __name__ == "__main__":
             gZipFile('emotivrecordings.db', 'emotivrecordings.db.gz')
             sevenZipFile('emotivrecordings.db', 'emotivrecordings.db.7z')
             bZipFile('emotivrecordings.db', 'emotivrecordings.db.bz2')
+
+            start_writing_to_jsonfile = time.time()
+            save_packets_to_jsonfile(packets)
+            print "It took " + str(time.time() - start_writing_to_jsonfile) + " seconds to save to the json file"
+            gZipFile('jsonfile.txt', 'jsonfile.txt.gz')
+            sevenZipFile('jsonfile.txt', 'jsonfile.txt.7z')
+            bZipFile('jsonfile.txt', 'jsonfile.txt.bz2')
 
         finally:
             #headset.close()
