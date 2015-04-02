@@ -15,10 +15,12 @@ import gevent
 import datetime
 import time
 import json
+from itertools import chain, izip_longest
 import pprint
 
 SAMPLING_RATE = 128 # Emotiv's sampling rate
-epoc_channels = 17
+nr_epoc_channels = 17
+nr_gyros_emotiv = 2
 
 conn = builder()('emotivrecordings.db', debug=False)
 
@@ -81,11 +83,15 @@ def write_recording_to_csv(recording, filename="recording" + str(datetime.dateti
 
 
 def prepare_recording_for_csv(packets_list):
-    recording = nmpy.zeros((len(packets_list), epoc_channels))
+    recording = nmpy.zeros((len(packets_list), nr_epoc_channels * 2 + nr_gyros_emotiv))
     for packet in packets_list:
         values = map(lambda d: d['value'], packet.sensors.values())
-        recording[packets_list.index(packet), :] = values
-        recording[packets_list.index(packet), :] = values
+        readings_quality = map(lambda d: d['quality'], packet.sensors.values())
+        if len(values) == len(readings_quality):
+            values_and_qualities = [i for i in chain(*izip_longest(values, readings_quality)) if i is not None]
+            recording[packets_list.index(packet), :] = [i for i in chain(values_and_qualities, [0, 0])]
+        else:
+            print "Something went wrong - mismatch between readings' values and quality of readings."
     return recording
 
 
@@ -124,44 +130,78 @@ class EegData(SQLObject):
     _connection = conn
     gyroX = StringCol(length=5)
     gyroY = StringCol(length=5)
-    sensorY = StringCol()
-    sensorF3 = StringCol()
-    sensorF4 = StringCol()
-    sensorP7 = StringCol()
-    sensorFC6 = StringCol()
-    sensorF7 = StringCol()
-    sensorF8 = StringCol()
-    sensorT7 = StringCol()
-    sensorP8 = StringCol()
-    sensorFC5 = StringCol()
-    sensorAF4 = StringCol()
-    sensorUnknown = StringCol()
-    sensorT8 = StringCol()
-    sensorX = StringCol()
-    sensorO2 = StringCol()
-    sensorO1 = StringCol()
-    sensorAF3 = StringCol()
+    sensorY_value = StringCol()
+    sensorY_quality = StringCol()
+    sensorF3_value = StringCol()
+    sensorF3_quality = StringCol()
+    sensorF4_value = StringCol()
+    sensorF4_quality = StringCol()
+    sensorP7_value = StringCol()
+    sensorP7_quality = StringCol()
+    sensorFC6_value = StringCol()
+    sensorFC6_quality = StringCol()
+    sensorF7_value = StringCol()
+    sensorF7_quality = StringCol()
+    sensorF8_value = StringCol()
+    sensorF8_quality = StringCol()
+    sensorT7_value = StringCol()
+    sensorT7_quality = StringCol()
+    sensorP8_value = StringCol()
+    sensorP8_quality = StringCol()
+    sensorFC5_value = StringCol()
+    sensorFC5_quality = StringCol()
+    sensorAF4_value = StringCol()
+    sensorAF4_quality = StringCol()
+    sensorUnknown_value = StringCol()
+    sensorUnknown_quality = StringCol()
+    sensorT8_value = StringCol()
+    sensorT8_quality = StringCol()
+    sensorX_value = StringCol()
+    sensorX_quality = StringCol()
+    sensorO2_value = StringCol()
+    sensorO2_quality = StringCol()
+    sensorO1_value = StringCol()
+    sensorO1_quality = StringCol()
+    sensorAF3_value = StringCol()
+    sensorAF3_quality = StringCol()
 
 
 def save_packet_to_sqldb(packet):
     EegData(gyroX = str(packet.gyro_x), gyroY = str(packet.gyro_y),
-            sensorY = str(packet.sensors['Y']['value']),
-            sensorF3 = str(packet.sensors['F3']['value']),
-            sensorF4 = str(packet.sensors['F4']['value']),
-            sensorP7 = str(packet.sensors['P7']['value']),
-            sensorFC6 = str(packet.sensors['FC6']['value']),
-            sensorF7 = str(packet.sensors['F7']['value']),
-            sensorF8 = str(packet.sensors['F8']['value']),
-            sensorT7 = str(packet.sensors['T7']['value']),
-            sensorP8 = str(packet.sensors['P8']['value']),
-            sensorFC5 = str(packet.sensors['FC5']['value']),
-            sensorAF4 = str(packet.sensors['AF4']['value']),
-            sensorT8 = str(packet.sensors['T8']['value']),
-            sensorX = str(packet.sensors['X']['value']),
-            sensorO2 = str(packet.sensors['O2']['value']),
-            sensorO1 = str(packet.sensors['O1']['value']),
-            sensorAF3 = str(packet.sensors['AF3']['value']),
-            sensorUnknown = str(packet.sensors['Unknown']['value']))
+            sensorY_value = str(packet.sensors['Y']['value']),
+            sensorY_quality = str(packet.sensors['Y']['quality']),
+            sensorF3_value = str(packet.sensors['F3']['value']),
+            sensorF3_quality = str(packet.sensors['F3']['quality']),
+            sensorF4_value = str(packet.sensors['F4']['value']),
+            sensorF4_quality = str(packet.sensors['F4']['quality']),
+            sensorP7_value = str(packet.sensors['P7']['value']),
+            sensorP7_quality = str(packet.sensors['P7']['quality']),
+            sensorFC6_value = str(packet.sensors['FC6']['value']),
+            sensorFC6_quality = str(packet.sensors['FC6']['quality']),
+            sensorF7_value = str(packet.sensors['F7']['value']),
+            sensorF7_quality = str(packet.sensors['F7']['quality']),
+            sensorF8_value = str(packet.sensors['F8']['value']),
+            sensorF8_quality = str(packet.sensors['F8']['quality']),
+            sensorT7_value = str(packet.sensors['T7']['value']),
+            sensorT7_quality = str(packet.sensors['T7']['quality']),
+            sensorP8_value = str(packet.sensors['P8']['value']),
+            sensorP8_quality = str(packet.sensors['P8']['quality']),
+            sensorFC5_value = str(packet.sensors['FC5']['value']),
+            sensorFC5_quality = str(packet.sensors['FC5']['quality']),
+            sensorAF4_value = str(packet.sensors['AF4']['value']),
+            sensorAF4_quality = str(packet.sensors['AF4']['quality']),
+            sensorT8_value = str(packet.sensors['T8']['value']),
+            sensorT8_quality = str(packet.sensors['T8']['quality']),
+            sensorX_value = str(packet.sensors['X']['value']),
+            sensorX_quality = str(packet.sensors['X']['quality']),
+            sensorO2_value = str(packet.sensors['O2']['value']),
+            sensorO2_quality = str(packet.sensors['O2']['quality']),
+            sensorO1_value = str(packet.sensors['O1']['value']),
+            sensorO1_quality = str(packet.sensors['O1']['quality']),
+            sensorAF3_value = str(packet.sensors['AF3']['value']),
+            sensorAF3_quality = str(packet.sensors['AF3']['quality']),
+            sensorUnknown_value = str(packet.sensors['Unknown']['value']),
+            sensorUnknown_quality = str(packet.sensors['Unknown']['quality']))
 
 
 def save_packets_to_sqldb(packets):
