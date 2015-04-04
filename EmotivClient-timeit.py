@@ -3,6 +3,7 @@ Usage:
   EmotivClient-timeit.py save_to_sqldb
   EmotivClient-timeit.py save_to_csv
   EmotivClient-timeit.py save_to_jsonfile
+  EmotivClient-timeit.py save [--nrexperiments=<nr>] (tocsv | tosqldb | tojsonfile) [compress (gzip | 7zip)]
 
 Options:
   --nrexperiments=<nr>
@@ -13,14 +14,15 @@ import EmotivClient
 import timeit
 from docopt import docopt
 
+read_packets_statement = """
+from EmotivClient import *
+packets = read_packets_from_emotiv(1)
+"""
 
 def save_to_sqldb_timeit(nrexp):
-    setup_statement = """
-from EmotivClient import *
-EegData.createTable(ifNotExists=True)
-packets = read_packets_from_emotiv(1)
-    """
+    setup_statement = read_packets_statement
     primary_statement = """
+EegData.createTable(ifNotExists=True)
 save_packets_to_sqldb(packets)
     """
     results = timeit.Timer(primary_statement, setup_statement).repeat(nrexp, 1)
@@ -28,9 +30,7 @@ save_packets_to_sqldb(packets)
     print "min time " + str(min(results))
 
 def save_to_csv_timeit(nrexp):
-    setup_statement = """
-from EmotivClient import *
-packets = read_packets_from_emotiv(1)
+    setup_statement = read_packets_statement + """
 recording = prepare_recording_for_csv(packets)
     """
     primary_statement = """
@@ -43,10 +43,7 @@ bZipFile("w.csv", "arw.csv.bz2")
 
 
 def save_to_jsonfile_timeit(nrexp):
-    setup_statement = """
-from EmotivClient import *
-packets = read_packets_from_emotiv(1)
-    """
+    setup_statement = read_packets_statement
     primary_statement = """
 save_packets_to_jsonfile(packets)
     """
@@ -57,8 +54,9 @@ save_packets_to_jsonfile(packets)
 
 def main(arguments):
     nrexp = 100
-    #if arguments['--nrexperiments']:
-    #    nrexp = int(arguments['--nrexperiments'])
+    if arguments['--nrexperiments']:
+        nrexp = int(arguments['--nrexperiments'])
+    print "Experiments number " + str(nrexp)
 
     if arguments['save_to_csv']:
         save_to_csv_timeit(nrexp)
@@ -66,6 +64,17 @@ def main(arguments):
         save_to_sqldb_timeit(nrexp)
     elif arguments['save_to_jsonfile']:
         save_to_jsonfile_timeit(nrexp)
+    elif arguments['save']:
+        print "Save"
+        if arguments['tocsv']:
+            print "tocsv"
+        elif arguments['tosqldb']:
+            print "tosqldb"
+
+        if (arguments['compress']):
+            print "compress"
+            if (arguments['7zip']):
+                print "7zip"
     else:
         print "Invalid argument."
 

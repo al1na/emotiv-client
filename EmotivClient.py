@@ -1,5 +1,12 @@
 """
 Simple client for Emotiv devices
+
+Usage:
+  EmotivClient.py (read_from_emotiv | generate_random) [--seconds=<nr>]
+
+Options:
+  --seconds=<nr>
+
 """
 from emokit import emotiv
 import pandas as pd
@@ -16,14 +23,19 @@ import datetime
 import time
 import json
 from itertools import chain, izip_longest
+from docopt import docopt
 import pprint
 
 SAMPLING_RATE = 128 # Emotiv's sampling rate
 nr_epoc_channels = 17
 nr_gyros_emotiv = 2
 
-conn = builder()('emotivrecordings.db', debug=False)
+conn = builder()('emotivrecordings' + str(datetime.datetime.now().isoformat()) + '.db', debug=False)
 
+"""
+https://pypi.python.org/pypi/Flask-REST/1.1
+https://flask-restful.readthedocs.org/en/0.3.1/index.html
+"""
 
 def sevenZipFile(source_file, compressed_file):
     # Source: http://www.linuxplanet.org/blogs/?cat=3845
@@ -121,6 +133,11 @@ class EmotivPacketMock(emotiv.EmotivPacket):
             'Unknown': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)}
         }
 
+def create_randomized_packets(nr_of_seconds):
+    packets = []
+    for i in range(nr_of_seconds * SAMPLING_RATE):
+        packets.append(create_randomized_packet())
+    return packets
 
 def create_randomized_packet():
     return EmotivPacketMock()
@@ -229,9 +246,9 @@ def save_packets_to_jsonfile(packets):
 
 
 def read_packets_from_emotiv(nr_seconds_to_record):
-    #headset = emotiv.Emotiv()
-    #gevent.spawn(headset.setup)
-    #gevent.sleep(1.5)
+    headset = emotiv.Emotiv()
+    gevent.spawn(headset.setup)
+    gevent.sleep(1.5)
 
     packets = []
 
@@ -241,8 +258,7 @@ def read_packets_from_emotiv(nr_seconds_to_record):
         nr_packets_read = 0
         while nr_seconds_left_to_record > 0:
             for sample in range(SAMPLING_RATE):
-                # packet = headset.dequeue()
-                packet = create_randomized_packet()
+                packet = headset.dequeue()
                 packets.append(packet)
                 nr_packets_read = nr_packets_read + 1
                 print "packets read " + str(nr_packets_read)
@@ -257,71 +273,44 @@ def read_packets_from_emotiv(nr_seconds_to_record):
                 gevent.sleep(0)
             nr_seconds_left_to_record = nr_seconds_left_to_record - 1
     finally:
-        #headset.close()
-        pass
+        headset.close()
     return packets
 
+
+def main(arguments):
+    packets = []
+    seconds_to_record = 1
+    if arguments['--seconds']:
+        seconds_to_record = int(arguments['--seconds'])
+    if arguments['read_from_emotiv']:
+        packets = read_packets_from_emotiv(seconds_to_record)
+    elif arguments['generate_random']:
+        packets = create_randomized_packets(seconds_to_record)
+
+    recording = prepare_recording_for_csv(packets)
+    start_writing = time.time()
+    csvfile = "emotivrecordings.csv"
+    write_recording_to_csv(recording, csvfile)
+    print "It took " + str(time.time() - start_writing) + " seconds to save the file"
+    gZipFile(csvfile, 'emotivrecordings.csv.gz')
+    sevenZipFile(csvfile, 'emotivrecordings.csv.7z')
+    bZipFile(csvfile, 'emotivrecordings.csv.bz2')
+
+    EegData.createTable(ifNotExists=True)
+    start_writing_to_sqldb = time.time()
+    save_packets_to_sqldb(packets)
+    print "It took " + str(time.time() - start_writing_to_sqldb) + " seconds to save to the sqlite database"
+    gZipFile('emotivrecordings.db', 'emotivrecordings.db.gz')
+    sevenZipFile('emotivrecordings.db', 'emotivrecordings.db.7z')
+    bZipFile('emotivrecordings.db', 'emotivrecordings.db.bz2')
+
+    start_writing_to_jsonfile = time.time()
+    save_packets_to_jsonfile(packets)
+    print "It took " + str(time.time() - start_writing_to_jsonfile) + " seconds to save to the json file"
+    gZipFile('jsonfile.txt', 'jsonfile.txt.gz')
+    sevenZipFile('jsonfile.txt', 'jsonfile.txt.7z')
+    bZipFile('jsonfile.txt', 'jsonfile.txt.bz2')
+
 if __name__ == "__main__":
-    try:
-        #headset = emotiv.Emotiv()
-        #gevent.spawn(headset.setup)
-        #gevent.sleep(1.5)
-
-        try:
-            nr_seconds_to_record = 1
-            nr_seconds_left_to_record = nr_seconds_to_record
-            samples = nr_seconds_left_to_record * SAMPLING_RATE
-            nr_packets_read = 0
-            packets = []
-
-            while nr_seconds_left_to_record > 0:
-                for sample in range(SAMPLING_RATE):
-                    #packet = headset.dequeue()
-                    packet = create_randomized_packet()
-                    packets.append(packet)
-                    nr_packets_read = nr_packets_read + 1
-                    print "packets read " + str(nr_packets_read)
-                    print "sample " + str(sample) + " " + " seconds left " + \
-                          str(nr_seconds_left_to_record) + \
-                          " " + str((nr_seconds_to_record - nr_seconds_left_to_record) * SAMPLING_RATE
-                                    + sample)
-                    print "date " + str(datetime.datetime.now().isoformat())
-                    print "packet counter " + str(packet.counter)
-                    print "packet battery " + str(packet.battery)
-                    print "sensors" + str(packet.sensors)
-
-                    gevent.sleep(0)
-
-                nr_seconds_left_to_record = nr_seconds_left_to_record - 1
-
-            recording = prepare_recording_for_csv(packets)
-            start_writing = time.time()
-            csvfile = "emotivrecordings.csv"
-            write_recording_to_csv(recording, csvfile)
-            print "It took " + str(time.time() - start_writing) + " seconds to save the file"
-            gZipFile(csvfile, 'emotivrecordings.csv.gz')
-            sevenZipFile(csvfile, 'emotivrecordings.csv.7z')
-            bZipFile(csvfile, 'emotivrecordings.csv.bz2')
-
-            EegData.createTable(ifNotExists=True)
-            start_writing_to_sqldb = time.time()
-            save_packets_to_sqldb(packets)
-            print "It took " + str(time.time() - start_writing_to_sqldb) + " seconds to save to the sqlite database"
-            gZipFile('emotivrecordings.db', 'emotivrecordings.db.gz')
-            sevenZipFile('emotivrecordings.db', 'emotivrecordings.db.7z')
-            bZipFile('emotivrecordings.db', 'emotivrecordings.db.bz2')
-
-            start_writing_to_jsonfile = time.time()
-            save_packets_to_jsonfile(packets)
-            print "It took " + str(time.time() - start_writing_to_jsonfile) + " seconds to save to the json file"
-            gZipFile('jsonfile.txt', 'jsonfile.txt.gz')
-            sevenZipFile('jsonfile.txt', 'jsonfile.txt.7z')
-            bZipFile('jsonfile.txt', 'jsonfile.txt.bz2')
-
-        finally:
-            #headset.close()
-            pass
-    except KeyboardInterrupt:
-        pass
-else:
-    print "Not run as main"
+    arguments = docopt(__doc__)
+    main(arguments)
