@@ -30,7 +30,8 @@ SAMPLING_RATE = 128 # Emotiv's sampling rate
 nr_epoc_channels = 17
 nr_gyros_emotiv = 2
 
-conn = builder()('emotivrecordings' + str(datetime.datetime.now().isoformat()) + '.db', debug=False)
+#conn = builder()('emotivrecordings' + str(datetime.datetime.now().isoformat()) + '.db', debug=False)
+conn = builder()('recording.db', debug=False)
 
 """
 https://pypi.python.org/pypi/Flask-REST/1.1
@@ -85,7 +86,8 @@ def bZipFile2(source_file):
 
 def write_recording_to_csv(recording, filename="recording" + str(datetime.datetime.now().isoformat()) + ".csv",
                            electrodes=None):
-    """Write an numpy array (or a list of lists) to a comma-separated values file."""
+    """Write an numpy array (or a list of lists) to a comma-separated values file.
+    Source code: emokitten"""
     if electrodes is not None:
         df = pd.DataFrame(recording, columns=electrodes)
     else:
@@ -101,7 +103,7 @@ def prepare_recording_for_csv(packets_list):
         readings_quality = map(lambda d: d['quality'], packet.sensors.values())
         if len(values) == len(readings_quality):
             values_and_qualities = [i for i in chain(*izip_longest(values, readings_quality)) if i is not None]
-            recording[packets_list.index(packet), :] = [i for i in chain(values_and_qualities, [0, 0])]
+            recording[packets_list.index(packet), :] = [i for i in chain(values_and_qualities, [packet.gyro_x, packet.gyro_y])]
         else:
             print "Something went wrong - mismatch between readings' values and quality of readings."
     return recording
@@ -109,7 +111,7 @@ def prepare_recording_for_csv(packets_list):
 
 class EmotivPacketMock(emotiv.EmotivPacket):
     def __init__(self):
-        self.counter = random.randint(0, 100)
+        self.counter = random.randint(0, 128)
         self.battery = random.randint(0, 100)
         self.gyro_x = random.randint(0, 100)
         self.gyro_y = random.randint(0, 100)
@@ -133,11 +135,13 @@ class EmotivPacketMock(emotiv.EmotivPacket):
             'Unknown': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)}
         }
 
-def create_randomized_packets(nr_of_seconds):
+
+def create_randomized_packets(seconds):
     packets = []
-    for i in range(nr_of_seconds * SAMPLING_RATE):
+    for i in range(seconds * SAMPLING_RATE):
         packets.append(create_randomized_packet())
     return packets
+
 
 def create_randomized_packet():
     return EmotivPacketMock()
@@ -220,7 +224,6 @@ def save_packet_to_sqldb(packet):
             sensorUnknown_value = str(packet.sensors['Unknown']['value']),
             sensorUnknown_quality = str(packet.sensors['Unknown']['quality']))
 
-
 def save_packets_to_sqldb(packets):
     for packet in packets:
         save_packet_to_sqldb(packet)
@@ -232,8 +235,8 @@ def convert_emotiv_packets_to_json(packets):
         jsonpack = {
                     #'counter': packet.counter,
                     #'battery': packet.battery,
-                    #'gyroX': packet.gyro_x,
-                    #'gyroY': packet.gyro_y,
+                    'gyroX': packet.gyro_x,
+                    'gyroY': packet.gyro_y,
                     'sensors': packet.sensors}
         jsonpackets.append(jsonpack)
     return jsonpackets
@@ -241,7 +244,7 @@ def convert_emotiv_packets_to_json(packets):
 
 def save_packets_to_jsonfile(packets):
     jsonpackets = convert_emotiv_packets_to_json(packets)
-    with open('jsonfile.txt', 'w') as file_out:
+    with open('recording.txt', 'w') as file_out:
         json.dump(jsonpackets, file_out)
 
 
@@ -262,16 +265,12 @@ def read_packets_from_emotiv(nr_seconds_to_record):
                 packets.append(packet)
                 nr_packets_read = nr_packets_read + 1
                 print "packets read " + str(nr_packets_read)
-                print "sample " + str(sample) + " " + " seconds left " + \
-                      str(nr_seconds_left_to_record) + \
-                      " " + str((nr_seconds_to_record - nr_seconds_left_to_record) * SAMPLING_RATE
-                                + sample)
-                print "date " + str(datetime.datetime.now().isoformat())
+                print "current time " + str(datetime.datetime.now().isoformat())
                 print "packet counter " + str(packet.counter)
                 print "packet battery " + str(packet.battery)
                 print "sensors" + str(packet.sensors)
                 gevent.sleep(0)
-            nr_seconds_left_to_record = nr_seconds_left_to_record - 1
+            nr_seconds_left_to_record -= 1
     finally:
         headset.close()
     return packets
