@@ -157,9 +157,37 @@ def main(arguments):
     size_sqlite_7zip_file = os.path.getsize("recording.db.7z")
     print "size sqlite compressed with 7zip " + str(size_sqlite_7zip_file)
 
+    ''' Plot 1: Memory-time plot for raw files '''
+
     x = [t_save_csv, t_save_json, t_save_sqlite]
     y = [size_csv_file, size_json_file, size_sqlite_file]
     plt.scatter(x, y)
+    plt.show()
+
+    ''' Plot 2: Memory-time plot for archived files '''
+
+    t1 = t_save_csv + t_compress_csv_bzip
+    t2 = t_save_csv + t_compress_csv_7zip
+    t3 = t_save_csv + t_compress_csv_gzip
+    t4 = t_save_json + t_compress_json_bzip
+    t5 = t_save_json + t_compress_json_7zip
+    t6 = t_save_json + t_compress_json_gzip
+    t7 = t_save_sqlite + t_compress_sqlite_bzip
+    t8 = t_save_sqlite + t_compress_sqlite_7zip
+    t9 = t_save_sqlite + t_compress_sqlite_gzip
+    s1 = size_csv_bzip_file
+    s2 = size_csv_7zip_file
+    s3 = size_csv_gzip_file
+    s4 = size_json_bzip_file
+    s5 = size_json_7zip_file
+    s6 = size_json_gzip_file
+    s7 = size_sqlite_bzip_file
+    s8 = size_sqlite_7zip_file
+    s9 = size_sqlite_gzip_file
+    x = [t1, t2, t3, t4, t5, t6, t7, t8, t9]
+    y = [s1, s2, s3, s4, s5, s6, s7, s8, s9]
+    plt.scatter(x, y, c=y, s=200)
+    plt.gray()
     plt.show()
 
     if arguments['save_to_csv']:
