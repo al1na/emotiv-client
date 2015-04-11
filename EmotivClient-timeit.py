@@ -161,7 +161,12 @@ def main(arguments):
 
     x = [t_save_csv, t_save_json, t_save_sqlite]
     y = [size_csv_file, size_json_file, size_sqlite_file]
-    plt.scatter(x, y)
+    labels = ['csv', 'json', 'sqlite']
+    plt.xlabel('Time in seconds')
+    plt.ylabel('Memory in bytes')
+    plt.scatter(x, y, s=20)
+    for label, xi, yi in zip(labels, x, y):
+        plt.annotate(label, xy = (xi, yi), xytext = (-10, 10), textcoords = 'offset points')
     plt.show()
 
     ''' Plot 2: Memory-time plot for archived files '''
@@ -186,8 +191,12 @@ def main(arguments):
     s9 = size_sqlite_gzip_file
     x = [t1, t2, t3, t4, t5, t6, t7, t8, t9]
     y = [s1, s2, s3, s4, s5, s6, s7, s8, s9]
-    plt.scatter(x, y, c=y, s=200)
-    plt.gray()
+    labels = ['csv/bzip', 'csv/7zip', 'csv/gzip', 'json/bzip', 'json/7zip', 'json/gzip', 'sqlite/bzip', 'sqlite/7zip', 'sqlite/gzip']
+    plt.xlabel('Time in seconds')
+    plt.ylabel('Memory in bytes')
+    plt.scatter(x, y, s=20)
+    for label, xi, yi in zip(labels, x, y):
+        plt.annotate(label, xy = (xi, yi), xytext = (-10, 10), textcoords = 'offset points')
     plt.show()
 
     if arguments['save_to_csv']:
