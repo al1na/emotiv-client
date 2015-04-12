@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../EEGws-api/.idea/EEGws-api.iml" filepath="$PROJECT_DIR$/../EEGws-api/.idea/EEGws-api.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/emotiv-client.iml" filepath="$PROJECT_DIR$/.idea/emotiv-client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../finnemokit/.idea/finnemokit.iml" filepath="$PROJECT_DIR$/../finnemokit/.idea/finnemokit.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../finnsmartphone-client/.idea/finnsmartphone-client.iml" filepath="$PROJECT_DIR$/../finnsmartphone-client/.idea/finnsmartphone-client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../flask-simple1/.idea/flask-simple1.iml" filepath="$PROJECT_DIR$/../flask-simple1/.idea/flask-simple1.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../tumblelog/.idea/tumblelog.iml" filepath="$PROJECT_DIR$/../tumblelog/.idea/tumblelog.iml" />
+    </modules>
+  </component>
+</project>
