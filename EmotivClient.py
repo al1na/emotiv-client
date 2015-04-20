@@ -224,6 +224,7 @@ def save_packet_to_sqldb(packet):
             sensorUnknown_value = str(packet.sensors['Unknown']['value']),
             sensorUnknown_quality = str(packet.sensors['Unknown']['quality']))
 
+
 def save_packets_to_sqldb(packets):
     for packet in packets:
         save_packet_to_sqldb(packet)
@@ -242,9 +243,9 @@ def convert_emotiv_packets_to_json(packets):
     return jsonpackets
 
 
-def save_packets_to_jsonfile(packets):
+def save_packets_to_jsonfile(packets, filename="recording" + str(datetime.datetime.now().isoformat()) + ".txt"):
     jsonpackets = convert_emotiv_packets_to_json(packets)
-    with open('recording.txt', 'w') as file_out:
+    with open(filename, 'w') as file_out:
         json.dump(jsonpackets, file_out)
 
 
