@@ -27,16 +27,12 @@ from docopt import docopt
 import pprint
 
 SAMPLING_RATE = 128 # Emotiv's sampling rate
-nr_epoc_channels = 17
+nr_emotiv_channels = 17
 nr_gyros_emotiv = 2
 
 #conn = builder()('emotivrecordings' + str(datetime.datetime.now().isoformat()) + '.db', debug=False)
 conn = builder()('recording.db', debug=False)
 
-"""
-https://pypi.python.org/pypi/Flask-REST/1.1
-https://flask-restful.readthedocs.org/en/0.3.1/index.html
-"""
 
 def sevenZipFile(source_file, compressed_file):
     # Source: http://www.linuxplanet.org/blogs/?cat=3845
@@ -97,7 +93,7 @@ def write_recording_to_csv(recording, filename="recording" + str(datetime.dateti
 
 
 def prepare_recording_for_csv(packets_list):
-    recording = nmpy.zeros((len(packets_list), nr_epoc_channels * 2 + nr_gyros_emotiv))
+    recording = nmpy.zeros((len(packets_list), nr_emotiv_channels * 2 + nr_gyros_emotiv))
     for packet in packets_list:
         values = map(lambda d: d['value'], packet.sensors.values())
         readings_quality = map(lambda d: d['quality'], packet.sensors.values())
