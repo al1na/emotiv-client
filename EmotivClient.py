@@ -110,17 +110,22 @@ class TimedEmotivPacket():
     Emotiv packet wrapped together with the time when it was read from the headset.
     """
     def __init__(self, emotiv_packet, time_of_reading):
-        self.packet = emotiv_packet
+        self.counter = emotiv_packet.counter
+        self.rawData = emotiv_packet.rawData
+        self.battery = emotiv_packet.battery
+        self.sensors = emotiv_packet.sensors
+        self.sync = emotiv_packet.sync
+        self.gyroX = emotiv_packet.gyroX
+        self.gyroY = emotiv_packet.gyroY
         self.time = time_of_reading
 
 
-class EmotivPacketMock():#emotiv.EmotivPacket):
+class EmotivPacketMock(emotiv.EmotivPacket):
     def __init__(self):
         self.counter = random.randint(0, 128)
         self.battery = random.randint(0, 100)
         self.gyroX = random.randint(0, 100)
         self.gyroY = random.randint(0, 100)
-        self.F3 = [0, 1, 2]
         self.sensors = {
             'F3': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
             'FC6': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
@@ -269,13 +274,14 @@ def read_packets_from_emotiv(nr_seconds_to_record):
         while nr_seconds_left_to_record > 0:
             for sample in range(SAMPLING_RATE):
                 packet = headset.dequeue()
-                packets.append(packet)
+                timed_packet = TimedEmotivPacket(packet, time.time())
+                packets.append(timed_packet)
                 nr_packets_read = nr_packets_read + 1
                 print "packets read " + str(nr_packets_read)
                 print "current time " + str(datetime.datetime.now().isoformat())
-                print "packet counter " + str(packet.counter)
-                print "packet battery " + str(packet.battery)
-                print "sensors" + str(packet.sensors)
+                print "packet counter " + str(timed_packet.counter)
+                print "packet battery " + str(timed_packet.battery)
+                print "sensors" + str(timed_packet.sensors)
                 gevent.sleep(0)
             nr_seconds_left_to_record -= 1
     finally:
