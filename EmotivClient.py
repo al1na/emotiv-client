@@ -99,36 +99,46 @@ def prepare_recording_for_csv(packets_list):
         readings_quality = map(lambda d: d['quality'], packet.sensors.values())
         if len(values) == len(readings_quality):
             values_and_qualities = [i for i in chain(*izip_longest(values, readings_quality)) if i is not None]
-            recording[packets_list.index(packet), :] = [i for i in chain(values_and_qualities, [packet.gyro_x, packet.gyro_y])]
+            recording[packets_list.index(packet), :] = [i for i in chain(values_and_qualities, [packet.gyroX, packet.gyroY])]
         else:
             print "Something went wrong - mismatch between readings' values and quality of readings."
     return recording
 
 
-class EmotivPacketMock(emotiv.EmotivPacket):
+class TimedEmotivPacket():
+    """
+    Emotiv packet wrapped together with the time when it was read from the headset.
+    """
+    def __init__(self, emotiv_packet, time_of_reading):
+        self.packet = emotiv_packet
+        self.time = time_of_reading
+
+
+class EmotivPacketMock():#emotiv.EmotivPacket):
     def __init__(self):
         self.counter = random.randint(0, 128)
         self.battery = random.randint(0, 100)
-        self.gyro_x = random.randint(0, 100)
-        self.gyro_y = random.randint(0, 100)
+        self.gyroX = random.randint(0, 100)
+        self.gyroY = random.randint(0, 100)
+        self.F3 = [0, 1, 2]
         self.sensors = {
-            'F3': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'FC6': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'P7': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'T8': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'F7': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'F8': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'T7': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'P8': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'AF4': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'F4': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'AF3': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'O2': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'O1': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'FC5': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'X': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'Y': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'Unknown': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)}
+            'F3': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'FC6': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'P7': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'T8': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'F7': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'F8': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'T7': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'P8': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'AF4': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'F4': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'AF3': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'O2': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'O1': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'FC5': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'X': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'Y': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'Unknown': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)}
         }
 
 
@@ -184,7 +194,7 @@ class EegData(SQLObject):
 
 
 def save_packet_to_sqldb(packet):
-    EegData(gyroX = str(packet.gyro_x), gyroY = str(packet.gyro_y),
+    EegData(gyroX = str(packet.gyroX), gyroY = str(packet.gyroY),
             sensorY_value = str(packet.sensors['Y']['value']),
             sensorY_quality = str(packet.sensors['Y']['quality']),
             sensorF3_value = str(packet.sensors['F3']['value']),
@@ -232,8 +242,8 @@ def convert_emotiv_packets_to_json(packets):
         jsonpack = {
                     #'counter': packet.counter,
                     #'battery': packet.battery,
-                    'gyroX': packet.gyro_x,
-                    'gyroY': packet.gyro_y,
+                    'gyroX': packet.gyroX,
+                    'gyroY': packet.gyroY,
                     'sensors': packet.sensors}
         jsonpackets.append(jsonpack)
     return jsonpackets
