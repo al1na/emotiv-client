@@ -93,13 +93,13 @@ def write_recording_to_csv(recording, filename="recording" + str(datetime.dateti
 
 
 def prepare_recording_for_csv(packets_list):
-    recording = nmpy.zeros((len(packets_list), nr_emotiv_channels * 2 + nr_gyros_emotiv))
+    recording = nmpy.zeros((len(packets_list), 1 + nr_emotiv_channels * 2))
     for packet in packets_list:
         values = map(lambda d: d['value'], packet.sensors.values())
         readings_quality = map(lambda d: d['quality'], packet.sensors.values())
         if len(values) == len(readings_quality):
             values_and_qualities = [i for i in chain(*izip_longest(values, readings_quality)) if i is not None]
-            recording[packets_list.index(packet), :] = [i for i in chain(values_and_qualities, [packet.gyroX, packet.gyroY])]
+            recording[packets_list.index(packet), :] = [i for i in chain([packet.time], values_and_qualities)]
         else:
             print "Something went wrong - mismatch between readings' values and quality of readings."
     return recording
@@ -160,6 +160,7 @@ def create_randomized_packet():
 
 class EegData(SQLObject):
     _connection = conn
+    time_stamp = DateTimeCol()
     gyroX = StringCol(length=5)
     gyroY = StringCol(length=5)
     sensorY_value = StringCol()
@@ -199,7 +200,8 @@ class EegData(SQLObject):
 
 
 def save_packet_to_sqldb(packet):
-    EegData(gyroX = str(packet.gyroX), gyroY = str(packet.gyroY),
+    EegData(time_stamp=datetime.datetime.fromtimestamp(packet.time),
+            gyroX = str(packet.gyroX), gyroY = str(packet.gyroY),
             sensorY_value = str(packet.sensors['Y']['value']),
             sensorY_quality = str(packet.sensors['Y']['quality']),
             sensorF3_value = str(packet.sensors['F3']['value']),
