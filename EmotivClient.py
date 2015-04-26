@@ -244,16 +244,29 @@ def save_packets_to_sqldb(packets):
 
 
 def convert_emotiv_packets_to_json(packets):
-    jsonpackets = []
+    timestamps = []
+    gyrox_list = []
+    gyroy_list = []
+    el_values = {}
+    el_qualities = {}
     for packet in packets:
-        jsonpack = {
-                    #'counter': packet.counter,
-                    #'battery': packet.battery,
-                    'gyroX': packet.gyroX,
-                    'gyroY': packet.gyroY,
-                    'sensors': packet.sensors}
-        jsonpackets.append(jsonpack)
-    return jsonpackets
+        timestamps.append(packet.time)
+        gyrox_list.append(packet.gyroX)
+        gyroy_list.append(packet.gyroY)
+        for electrode in packet.sensors.keys():
+            if electrode in el_values:
+                el_values[electrode].append(packet.sensors[electrode]['value'])
+            else:
+                el_values[electrode] = [packet.sensors[electrode]['value']]
+            if electrode in el_qualities:
+                el_qualities[electrode].append(packet.sensors[electrode]['quality'])
+            else:
+                el_qualities[electrode] = [packet.sensors[electrode]['quality']]
+    rec = {'timestamp': timestamps,
+           'electrodes': el_values,
+           'quality': el_qualities,
+           'gyroscope': {'gyroX': gyrox_list, 'gyroY': gyroy_list}}
+    return rec
 
 
 def save_packets_to_jsonfile(packets, filename="recording" + str(datetime.datetime.now().isoformat()) + ".txt"):
