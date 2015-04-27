@@ -25,6 +25,8 @@ import json
 from itertools import chain, izip_longest
 from docopt import docopt
 import pprint
+import requests
+from requests.auth import HTTPBasicAuth
 
 SAMPLING_RATE = 128 # Emotiv's sampling rate
 nr_emotiv_channels = 17
@@ -122,6 +124,7 @@ class TimedEmotivPacket():
 
 class EmotivPacketMock(emotiv.EmotivPacket):
     def __init__(self):
+        self.time = random.randint(-10000, 10000)
         self.counter = random.randint(0, 128)
         self.battery = random.randint(0, 100)
         self.gyroX = random.randint(0, 100)
@@ -302,6 +305,16 @@ def read_packets_from_emotiv(nr_seconds_to_record):
     finally:
         headset.close()
     return packets
+
+
+def upload_file_mobile_eeg_ws(filepath):
+    url = "http://localhost:5000/mobileeg/api/v1/recordings/upload"
+    files = {'file': ('filename2.bz2', open(filepath, 'rb'))}
+    x = open('arw.csv.bz2', 'rb')
+    print x.readline()
+    requests.post(url, files=files, auth=HTTPBasicAuth('al1na', 'python'))
+    #with open('arw.csv.bz2', 'rb') as f:
+    #    requests.post(url, data=f, auth=HTTPBasicAuth('al1na', 'python'))
 
 
 def main(arguments):
