@@ -18,8 +18,8 @@ import matplotlib.pyplot as plt
 
 read_packets_statement = """
 from EmotivClient import *
-#packets = read_packets_from_emotiv(1)
-packets = create_randomized_packets(1)
+packets = read_packets_from_emotiv(1000)
+#packets = create_randomized_packets(100)
 """
 
 def save_to_sqldb_timeit(nrexp):
@@ -158,16 +158,30 @@ def main(arguments):
 
     ''' Plot 1: Memory-time plot for raw files '''
 
+    lg = []
     x = [t_save_csv, t_save_json, t_save_sqlite]
-    y = [size_csv_file, size_json_file, size_sqlite_file]
+    y = [size_csv_file/1000, size_json_file/1000, size_sqlite_file/1000]
+    colors = ['k', 'k', 'k']
+    markers = ['s', 'o', 'v']
     labels = ['csv', 'json', 'sqlite']
     plt.xlabel('Time in seconds')
-    plt.ylabel('Memory in bytes')
-    plt.scatter(x, y, s=20)
-    for label, xi, yi in zip(labels, x, y):
-        plt.annotate(label, xy = (xi, yi), xytext = (-10, 10), textcoords = 'offset points')
-    plt.show()
+    plt.ylabel('Size in kilobytes')
+    for i in range(0, 3):
+        lg.append(plt.scatter(x[i], y[i], marker=markers[i], color=colors[i], s=100))
+    #plt.scatter(x, y, s=20)
+    #for label, xi, yi in zip(labels, x, y):
+    #    plt.annotate(label, xy = (xi, yi), xytext = (-10, 10), textcoords = 'offset points')
+    plt.legend((lg[0], lg[1], lg[2]),
+               ('csv', 'json', 'sqlite'),
+               scatterpoints=1,
+               loc='upper right',
+               ncol=3,
+               fontsize=10,
+               bbox_to_anchor=(0., 1.02, 1., .102),
+               mode="expand",
+               borderaxespad=0.)
     plt.savefig("justsaving.png", dpi=150)
+    plt.show()
 
     ''' Plot 2: Memory-time plot for archived files '''
 
@@ -203,20 +217,20 @@ def main(arguments):
     #x = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     x = [t1, t2, t3, t4, t5, t6, t7, t8, t9]
     #y = [11, 25, 13, 34, 51, 44, 19, 39, 6]
-    y = [s1, s2, s3, s4, s5, s6, s7, s8, s9]
+    y = [s1/1000, s2/1000, s3/1000, s4/1000, s5/1000, s6/1000, s7/1000, s8/1000, s9/1000]
     colors = ['b', 'g', 'r', 'b', 'g', 'r', 'b', 'g', 'r']
     markers = ['s', 's', 's', 'o', 'o', 'o', 'v', 'v', 'v']
     labels = ['csv/bzip', 'csv/7zip', 'csv/gzip', 'json/bzip', 'json/7zip', 'json/gzip', 'sqlite/bzip', 'sqlite/7zip', 'sqlite/gzip']
 
     plt.xlabel('Time in seconds')
-    plt.ylabel('Memory in bytes')
+    plt.ylabel('Size in kilobytes')
 
     for i in range(0, 9):
-        lg.append(plt.scatter(x[i], y[i], marker=markers[i], color=colors[i], s=100))
+        lg.append(plt.scatter(x[i], y[i], marker=markers[i], color=colors[i], s=40))
 
-    for label, xi, yi in zip(labels, x, y):
-        plt.annotate(label, xy = (xi, yi), xytext = (-10, 10), textcoords = 'offset points')
-
+    #for label, xi, yi in zip(labels, x, y):
+    #    plt.annotate(label, xy = (xi, yi), xytext = (-10, 10), textcoords = 'offset points')
+    #plt.scatter(x, y, s=20)
     plt.legend((lg[0], lg[1], lg[2], lg[3], lg[4], lg[5], lg[6], lg[7], lg[8]),
                ('csv/bzip', 'csv/7zip', 'csv/gzip', 'json/bzip', 'json/7zip', 'json/gzip', 'sqlite/bzip', 'sqlite/7zip', 'sqlite/gzip'),
                scatterpoints=1,
@@ -227,6 +241,37 @@ def main(arguments):
                mode="expand",
                borderaxespad=0.)
     plt.savefig("saving+compressing.png", dpi=150)
+    plt.show()
+
+    lg = []
+    #x = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    x = [t1, t2, t3, t4, t5, t6]
+    #y = [11, 25, 13, 34, 51, 44, 19, 39, 6]
+    y = [s1/1000, s2/1000, s3/1000, s4/1000, s5/1000, s6/1000]
+    colors = ['b', 'g', 'r', 'b', 'g', 'r', 'b', 'g', 'r']
+    markers = ['s', 's', 's', 'o', 'o', 'o', 'v', 'v', 'v']
+    labels = ['csv/bzip', 'csv/7zip', 'csv/gzip', 'json/bzip', 'json/7zip', 'json/gzip']
+
+    plt.xlabel('Time in seconds')
+    plt.ylabel('Size in kilobytes')
+
+    for i in range(0, 6):
+        lg.append(plt.scatter(x[i], y[i], marker=markers[i], color=colors[i], s=100))
+
+    #for label, xi, yi in zip(labels, x, y):
+    #    plt.annotate(label, xy = (xi, yi), xytext = (-10, 10), textcoords = 'offset points')
+    #plt.scatter(x, y, s=20)
+    plt.legend((lg[0], lg[1], lg[2], lg[3], lg[4], lg[5]),
+               ('csv/bzip', 'csv/7zip', 'csv/gzip', 'json/bzip', 'json/7zip', 'json/gzip'),
+               scatterpoints=1,
+               loc='upper right',
+               ncol=3,
+               fontsize=10,
+               bbox_to_anchor=(0., 1.02, 1., .102),
+               mode="expand",
+               borderaxespad=0.)
+    plt.savefig("saving+compressing+csv+json.png", dpi=150)
+    plt.show()
 
     if arguments['save_to_csv']:
         save_to_csv_timeit(nrexp)
