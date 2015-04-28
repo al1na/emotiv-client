@@ -25,18 +25,16 @@ import json
 from itertools import chain, izip_longest
 from docopt import docopt
 import pprint
+import requests
+from requests.auth import HTTPBasicAuth
 
 SAMPLING_RATE = 128 # Emotiv's sampling rate
-nr_epoc_channels = 17
+nr_emotiv_channels = 17
 nr_gyros_emotiv = 2
 
 #conn = builder()('emotivrecordings' + str(datetime.datetime.now().isoformat()) + '.db', debug=False)
 conn = builder()('recording.db', debug=False)
 
-"""
-https://pypi.python.org/pypi/Flask-REST/1.1
-https://flask-restful.readthedocs.org/en/0.3.1/index.html
-"""
 
 def sevenZipFile(source_file, compressed_file):
     # Source: http://www.linuxplanet.org/blogs/?cat=3845
@@ -97,42 +95,58 @@ def write_recording_to_csv(recording, filename="recording" + str(datetime.dateti
 
 
 def prepare_recording_for_csv(packets_list):
-    recording = nmpy.zeros((len(packets_list), nr_epoc_channels * 2 + nr_gyros_emotiv))
+    recording = nmpy.zeros((len(packets_list), 1 + nr_emotiv_channels * 2))
     for packet in packets_list:
         values = map(lambda d: d['value'], packet.sensors.values())
         readings_quality = map(lambda d: d['quality'], packet.sensors.values())
         if len(values) == len(readings_quality):
             values_and_qualities = [i for i in chain(*izip_longest(values, readings_quality)) if i is not None]
-            recording[packets_list.index(packet), :] = [i for i in chain(values_and_qualities, [packet.gyro_x, packet.gyro_y])]
+            recording[packets_list.index(packet), :] = [i for i in chain([packet.time], values_and_qualities)]
         else:
             print "Something went wrong - mismatch between readings' values and quality of readings."
     return recording
 
 
+class TimedEmotivPacket():
+    """
+    Emotiv packet wrapped together with the time when it was read from the headset.
+    """
+    def __init__(self, emotiv_packet, time_of_reading):
+        self.counter = emotiv_packet.counter
+        self.rawData = emotiv_packet.rawData
+        self.battery = emotiv_packet.battery
+        self.sensors = emotiv_packet.sensors
+        self.sync = emotiv_packet.sync
+        self.gyroX = emotiv_packet.gyroX
+        self.gyroY = emotiv_packet.gyroY
+        self.time = time_of_reading
+
+
 class EmotivPacketMock(emotiv.EmotivPacket):
     def __init__(self):
+        self.time = random.randint(-10000, 10000)
         self.counter = random.randint(0, 128)
         self.battery = random.randint(0, 100)
-        self.gyro_x = random.randint(0, 100)
-        self.gyro_y = random.randint(0, 100)
+        self.gyroX = random.randint(0, 100)
+        self.gyroY = random.randint(0, 100)
         self.sensors = {
-            'F3': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'FC6': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'P7': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'T8': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'F7': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'F8': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'T7': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'P8': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'AF4': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'F4': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'AF3': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'O2': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'O1': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'FC5': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'X': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'Y': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)},
-            'Unknown': {'value': random.randint(-10000, 10000), 'quality': random.randint(0, 100)}
+            'F3': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'FC6': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'P7': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'T8': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'F7': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'F8': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'T7': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'P8': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'AF4': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'F4': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'AF3': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'O2': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'O1': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'FC5': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'X': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'Y': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)},
+            'Unknown': {'value': random.randint(-8900, 8900), 'quality': random.randint(0, 100)}
         }
 
 
@@ -149,6 +163,7 @@ def create_randomized_packet():
 
 class EegData(SQLObject):
     _connection = conn
+    time_stamp = DateTimeCol()
     gyroX = StringCol(length=5)
     gyroY = StringCol(length=5)
     sensorY_value = StringCol()
@@ -188,7 +203,8 @@ class EegData(SQLObject):
 
 
 def save_packet_to_sqldb(packet):
-    EegData(gyroX = str(packet.gyro_x), gyroY = str(packet.gyro_y),
+    EegData(time_stamp=datetime.datetime.fromtimestamp(packet.time),
+            gyroX = str(packet.gyroX), gyroY = str(packet.gyroY),
             sensorY_value = str(packet.sensors['Y']['value']),
             sensorY_quality = str(packet.sensors['Y']['quality']),
             sensorF3_value = str(packet.sensors['F3']['value']),
@@ -231,16 +247,29 @@ def save_packets_to_sqldb(packets):
 
 
 def convert_emotiv_packets_to_json(packets):
-    jsonpackets = []
+    timestamps = []
+    gyrox_list = []
+    gyroy_list = []
+    el_values = {}
+    el_qualities = {}
     for packet in packets:
-        jsonpack = {
-                    #'counter': packet.counter,
-                    #'battery': packet.battery,
-                    'gyroX': packet.gyro_x,
-                    'gyroY': packet.gyro_y,
-                    'sensors': packet.sensors}
-        jsonpackets.append(jsonpack)
-    return jsonpackets
+        timestamps.append(packet.time)
+        gyrox_list.append(packet.gyroX)
+        gyroy_list.append(packet.gyroY)
+        for electrode in packet.sensors.keys():
+            if electrode in el_values:
+                el_values[electrode].append(packet.sensors[electrode]['value'])
+            else:
+                el_values[electrode] = [packet.sensors[electrode]['value']]
+            if electrode in el_qualities:
+                el_qualities[electrode].append(packet.sensors[electrode]['quality'])
+            else:
+                el_qualities[electrode] = [packet.sensors[electrode]['quality']]
+    rec = {'timestamp': timestamps,
+           'electrodes': el_values,
+           'quality': el_qualities,
+           'gyroscope': {'gyroX': gyrox_list, 'gyroY': gyroy_list}}
+    return rec
 
 
 def save_packets_to_jsonfile(packets, filename="recording" + str(datetime.datetime.now().isoformat()) + ".txt"):
@@ -263,18 +292,29 @@ def read_packets_from_emotiv(nr_seconds_to_record):
         while nr_seconds_left_to_record > 0:
             for sample in range(SAMPLING_RATE):
                 packet = headset.dequeue()
-                packets.append(packet)
+                timed_packet = TimedEmotivPacket(packet, time.time())
+                packets.append(timed_packet)
                 nr_packets_read = nr_packets_read + 1
                 print "packets read " + str(nr_packets_read)
                 print "current time " + str(datetime.datetime.now().isoformat())
-                print "packet counter " + str(packet.counter)
-                print "packet battery " + str(packet.battery)
-                print "sensors" + str(packet.sensors)
+                print "packet counter " + str(timed_packet.counter)
+                print "packet battery " + str(timed_packet.battery)
+                print "sensors" + str(timed_packet.sensors)
                 gevent.sleep(0)
             nr_seconds_left_to_record -= 1
     finally:
         headset.close()
     return packets
+
+
+def upload_file_mobile_eeg_ws(filepath):
+    url = "http://localhost:5000/mobileeg/api/v1/recordings/upload"
+    files = {'file': ('filename2.bz2', open(filepath, 'rb'))}
+    x = open('arw.csv.bz2', 'rb')
+    print x.readline()
+    requests.post(url, files=files, auth=HTTPBasicAuth('al1na', 'python'))
+    #with open('arw.csv.bz2', 'rb') as f:
+    #    requests.post(url, data=f, auth=HTTPBasicAuth('al1na', 'python'))
 
 
 def main(arguments):
