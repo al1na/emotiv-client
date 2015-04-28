@@ -13,7 +13,8 @@ import pandas as pd
 import numpy as nmpy
 import random
 from sqlobject import *
-from sqlobject.sqlite import builder
+from sqlobject.sqlite import *
+from sqlobject.sqlbuilder import *
 from subprocess import check_call
 import gzip
 import pylzma
@@ -239,6 +240,49 @@ def save_packet_to_sqldb(packet):
             sensorAF3_quality = str(packet.sensors['AF3']['quality']),
             sensorUnknown_value = str(packet.sensors['Unknown']['value']),
             sensorUnknown_quality = str(packet.sensors['Unknown']['quality']))
+
+
+def save_packet_to_sqldb_sqlbuilder(packet):
+    packet_values = {'time_stamp': datetime.datetime.fromtimestamp(packet.time),
+            'gyroX': str(packet.gyroX),
+            'gyroY': str(packet.gyroY),
+            'sensorY_value': str(packet.sensors['Y']['value']),
+            'sensorY_quality': str(packet.sensors['Y']['quality']),
+            'sensorF3_value': str(packet.sensors['F3']['value']),
+            'sensorF3_quality': str(packet.sensors['F3']['quality']),
+            'sensorF4_value': str(packet.sensors['F4']['value']),
+            'sensorF4_quality': str(packet.sensors['F4']['quality']),
+            'sensorP7_value': str(packet.sensors['P7']['value']),
+            'sensorP7_quality': str(packet.sensors['P7']['quality']),
+            'sensorFC6_value': str(packet.sensors['FC6']['value']),
+            'sensorFC6_quality': str(packet.sensors['FC6']['quality']),
+            'sensorF7_value': str(packet.sensors['F7']['value']),
+            'sensorF7_quality': str(packet.sensors['F7']['quality']),
+            'sensorF8_value': str(packet.sensors['F8']['value']),
+            'sensorF8_quality': str(packet.sensors['F8']['quality']),
+            'sensorT7_value': str(packet.sensors['T7']['value']),
+            'sensorT7_quality': str(packet.sensors['T7']['quality']),
+            'sensorP8_value': str(packet.sensors['P8']['value']),
+            'sensorP8_quality': str(packet.sensors['P8']['quality']),
+            'sensorFC5_value': str(packet.sensors['FC5']['value']),
+            'sensorFC5_quality':str(packet.sensors['FC5']['quality']),
+            'sensorAF4_value': str(packet.sensors['AF4']['value']),
+            'sensorAF4_quality': str(packet.sensors['AF4']['quality']),
+            'sensorT8_value': str(packet.sensors['T8']['value']),
+            'sensorT8_quality': str(packet.sensors['T8']['quality']),
+            'sensorX_value': str(packet.sensors['X']['value']),
+            'sensorX_quality': str(packet.sensors['X']['quality']),
+            'sensorO2_value': str(packet.sensors['O2']['value']),
+            'sensorO2_quality': str(packet.sensors['O2']['quality']),
+            'sensorO1_value': str(packet.sensors['O1']['value']),
+            'sensorO1_quality': str(packet.sensors['O1']['quality']),
+            'sensorAF3_value': str(packet.sensors['AF3']['value']),
+            'sensorAF3_quality': str(packet.sensors['AF3']['quality']),
+            'sensorUnknown_value':str(packet.sensors['Unknown']['value']),
+            'sensorUnknown_quality': str(packet.sensors['Unknown']['quality'])}
+    insert = Insert('EegData', values=packet_values)
+    query = conn.sqlrepr(insert)
+    conn.query(query)
 
 
 def save_packets_to_sqldb(packets):
