@@ -75,7 +75,7 @@ def compress_with_7zip_timeit(nrexp, file_in, file_out):
 def save_to_jsonfile_timeit(nrexp):
     setup_statement = read_packets_statement
     primary_statement = """
-save_packets_to_jsonfile(packets)
+save_packets_to_jsonfile(packets, "recording.txt")
     """
     results = timeit.Timer(primary_statement, setup_statement).repeat(nrexp, 1)
     print results
